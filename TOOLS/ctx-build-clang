@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+SOURCE="${1:-$ROOT/SDK/main.c}"
+OUTPUT="$ROOT/initramfs/init"
+
+echo "[FreeCTX64] Clang builder"
+echo "[FreeCTX64] Root: $ROOT"
+
+if ! command -v clang >/dev/null 2>&1; then
+    echo "[ERROR] clang is not installed."
+    echo "[ERROR] Install it with:"
+    echo "        sudo apt install clang"
+    exit 1
+fi
+
+if [ ! -f "$SOURCE" ]; then
+    echo "[ERROR] Source file not found:"
+    echo "        $SOURCE"
+    exit 1
+fi
+
+echo "[FreeCTX64] Compiler: $(clang --version | head -n 1)"
+echo "[FreeCTX64] Source: $SOURCE"
+echo "[FreeCTX64] Output: $OUTPUT"
+echo "[FreeCTX64] Building..."
+echo
+
+mkdir -p "$ROOT/initramfs"
+
+clang \
+    -std=c11 \
+    -O2 \
+    -Wall \
+    -Wextra \
+    -Wpedantic \
+    "$SOURCE" \
+    -o "$OUTPUT"
+
+chmod +x "$OUTPUT"
+
+echo
+echo "[FreeCTX64] Build successful."
+echo "[FreeCTX64] Application: $OUTPUT"
