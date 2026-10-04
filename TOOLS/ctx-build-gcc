@@ -1,0 +1,55 @@
+#!/bin/sh
+
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+SDK="$ROOT/SDK"
+INITRAMFS="$ROOT/initramfs"
+SOURCE="$SDK/main.c"
+OUTPUT="$INITRAMFS/init"
+
+echo "[FreeCTX64] GCC builder"
+echo "[FreeCTX64] Root: $ROOT"
+echo
+
+if [ ! -d "$SDK" ]; then
+    echo "[ERROR] SDK directory not found: $SDK"
+    exit 1
+fi
+
+if [ ! -f "$SOURCE" ]; then
+    echo "[ERROR] SDK/main.c does not exist."
+    echo "[ERROR] Create the FreeCTX64 application at:"
+    echo "        $SOURCE"
+    exit 1
+fi
+
+if ! command -v gcc >/dev/null 2>&1; then
+    echo "[ERROR] gcc is required."
+    exit 1
+fi
+
+mkdir -p "$INITRAMFS"
+
+echo "[FreeCTX64] Compiler: $(gcc --version | head -n 1)"
+echo "[FreeCTX64] Source:   $SOURCE"
+echo "[FreeCTX64] Output:   $OUTPUT"
+echo
+echo "[FreeCTX64] Building..."
+echo
+
+gcc \
+    -std=c11 \
+    -O2 \
+    -Wall \
+    -Wextra \
+    -Wpedantic \
+    "$SOURCE" \
+    -o "$OUTPUT"
+
+chmod +x "$OUTPUT"
+
+echo
+echo "[FreeCTX64] Build completed successfully."
+echo "[FreeCTX64] Init: $OUTPUT"
+echo "[FreeCTX64] Size: $(wc -c < "$OUTPUT") bytes"

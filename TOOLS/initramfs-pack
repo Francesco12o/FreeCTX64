@@ -1,0 +1,45 @@
+#!/bin/sh
+
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+INITRAMFS="$ROOT/initramfs"
+BOOT="$ROOT/boot"
+OUTPUT="$BOOT/initramfs.img"
+
+echo "[FreeCTX64] Initramfs packer"
+echo "[FreeCTX64] Root: $ROOT"
+echo
+
+if [ ! -d "$INITRAMFS" ]; then
+    echo "[ERROR] initramfs directory not found: $INITRAMFS"
+    exit 1
+fi
+
+if [ ! -f "$INITRAMFS/init" ]; then
+    echo "[ERROR] $INITRAMFS/init does not exist"
+    echo "[ERROR] FreeCTX64 requires /init as its userspace entry point."
+    exit 1
+fi
+
+if ! command -v cpio >/dev/null 2>&1; then
+    echo "[ERROR] cpio is required."
+    exit 1
+fi
+
+mkdir -p "$BOOT"
+
+echo "[FreeCTX64] Creating initramfs..."
+echo "[FreeCTX64] Source: $INITRAMFS"
+echo "[FreeCTX64] Output: $OUTPUT"
+echo
+
+(
+    cd "$INITRAMFS"
+    find . -print | cpio -H newc -o
+) > "$OUTPUT"
+
+echo
+echo "[FreeCTX64] Initramfs created successfully."
+echo "[FreeCTX64] Image: $OUTPUT"
+echo "[FreeCTX64] Size: $(wc -c < "$OUTPUT") bytes"

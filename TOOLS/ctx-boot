@@ -1,0 +1,44 @@
+#!/bin/sh
+
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+BOOT="$ROOT/boot"
+KERNEL="$BOOT/vmlinuz"
+INITRAMFS="$BOOT/initramfs.img"
+
+echo "[FreeCTX64] Boot launcher"
+echo "[FreeCTX64] Root: $ROOT"
+echo
+
+if [ ! -f "$KERNEL" ]; then
+    echo "[ERROR] Linux kernel not found:"
+    echo "        $KERNEL"
+    exit 1
+fi
+
+if [ ! -f "$INITRAMFS" ]; then
+    echo "[ERROR] Initramfs image not found:"
+    echo "        $INITRAMFS"
+    echo "[ERROR] Run initramfs-pack first."
+    exit 1
+fi
+
+if ! command -v qemu-system-aarch64 >/dev/null 2>&1; then
+    echo "[ERROR] qemu-system-aarch64 is required."
+    exit 1
+fi
+
+echo "[FreeCTX64] Kernel:    $KERNEL"
+echo "[FreeCTX64] Initramfs: $INITRAMFS"
+echo "[FreeCTX64] Starting QEMU..."
+echo
+
+exec qemu-system-aarch64 \
+    -M virt \
+    -cpu cortex-a53 \
+    -m 512M \
+    -kernel "$KERNEL" \
+    -initrd "$INITRAMFS" \
+    -append "console=ttyAMA0 rdinit=/init" \
+    -nographic
