@@ -3,44 +3,108 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-SOURCE="${1:-$ROOT/SDK/main.c}"
-OUTPUT="$ROOT/initramfs/init"
+SDK="$ROOT/SDK"
+INITRAMFS="$ROOT/initramfs"
+OUTPUT="$INITRAMFS/init"
+EXTRAS="$SDK/ctxextras.c"
 
 echo "[FreeCTX64] Clang builder"
 echo "[FreeCTX64] Root: $ROOT"
+echo "[FreeCTX64] SDK:  $SDK"
+echo
+
+if [ ! -d "$SDK" ]; then
+    echo "[ERROR] SDK directory not found: $SDK"
+    exit 1
+fi
+
+if [ ! -f "$EXTRAS" ]; then
+    echo "[ERROR] SDK/ctxextras.c does not exist."
+    echo "[ERROR] FreeCTX64 SDK extras are required."
+    exit 1
+fi
 
 if ! command -v clang >/dev/null 2>&1; then
-    echo "[ERROR] clang is not installed."
-    echo "[ERROR] Install it with:"
-    echo "        sudo apt install clang"
+    echo "[ERROR] clang is required."
     exit 1
 fi
 
-if [ ! -f "$SOURCE" ]; then
-    echo "[ERROR] Source file not found:"
-    echo "        $SOURCE"
-    exit 1
+mkdir -p "$INITRAMFS"
+
+if [ "$#" -eq 0 ]; then
+    set -- main.c
 fi
+
+SOURCES=""
+
+for source in "$@"; do
+    case "$source" in
+        *.c)
+            ;;
+        *)
+            echo "[ERROR] Source must be a C file: $source"
+            exit 1
+            ;;
+    esac
+
+    if [ -f "$source" ]; then
+        SOURCES="$SOURCES \"$source\""
+    elif [ -f "$SDK/$source" ]; then
+        SOURCES="$SOURCES \"$SDK/$source\""
+    else
+        echo "[ERROR] Source file not found: $source"
+        echo "[ERROR] Looked in:"
+        echo "        $source"
+        echo "        $SDK/$source"
+        exit 1
+    fi
+done
+
+case " $* " in
+    *" ctxextras.c "*)
+        ;;
+    *)
+        SOURCES="$SOURCES \"$EXTRAS\""
+        ;;
+esac
 
 echo "[FreeCTX64] Compiler: $(clang --version | head -n 1)"
-echo "[FreeCTX64] Source: $SOURCE"
-echo "[FreeCTX64] Output: $OUTPUT"
+echo "[FreeCTX64] Output:   $OUTPUT"
+echo "[FreeCTX64] Sources:"
+for source in "$@"; do
+    echo "        $source"
+done
+echo "        ctxextras.c"
+echo
+echo "[FreeCTX64] Flags:"
+echo "        -std=c11"
+echo "        -O2"
+echo "        -Wall"
+echo "        -Wextra"
+echo "        -Wpedantic"
+echo "        -I$SDK"
+echo "        -pthread"
+echo
 echo "[FreeCTX64] Building..."
 echo
 
-mkdir -p "$ROOT/initramfs"
+cd "$SDK"
 
-clang \
+eval "clang \
     -std=c11 \
     -O2 \
     -Wall \
     -Wextra \
     -Wpedantic \
-    "$SOURCE" \
-    -o "$OUTPUT"
+    -I. \
+    $SOURCES \
+    -o \"$OUTPUT\" \
+    -pthread"
 
 chmod +x "$OUTPUT"
 
 echo
-echo "[FreeCTX64] Build successful."
-echo "[FreeCTX64] Application: $OUTPUT"
+echo "[FreeCTX64] Build completed successfully."
+echo "[FreeCTX64] Init: $OUTPUT"
+echo "[FreeCTX64] Size: $(wc -c < "$OUTPUT") bytes"
+echo "[FreeCTX64] Permissions: executable"
